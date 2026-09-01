@@ -18,8 +18,63 @@ create temporary table phase1_verification_context (
   expired_reservation_id uuid not null
 ) on commit drop;
 
--- Dados temporários isolados. Os perfis são criados em public.profiles porque
--- os IDs simulam usuários autenticados via set_config('request.jwt.claim.sub', ...).
+-- Dados temporários isolados. Os usuários são inseridos primeiro em auth.users
+-- para atender à FK de public.profiles. Os IDs simulam usuários autenticados via
+-- set_config('request.jwt.claim.sub', ...).
+insert into auth.users (
+  id,
+  instance_id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at
+)
+values
+  (
+    '00000000-0000-0000-0000-000000000101',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'phase1_verify_host@example.test',
+    crypt('phase1_verify_host_password', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"phase1_verify_host"}'::jsonb,
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-0000-0000-000000000102',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'phase1_verify_driver@example.test',
+    crypt('phase1_verify_driver_password', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"phase1_verify_driver"}'::jsonb,
+    now(),
+    now()
+  ),
+  (
+    '00000000-0000-0000-0000-000000000103',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'phase1_verify_stranger@example.test',
+    crypt('phase1_verify_stranger_password', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"phase1_verify_stranger"}'::jsonb,
+    now(),
+    now()
+  );
+
 insert into public.profiles (id, full_name, created_at, updated_at)
 values
   ('00000000-0000-0000-0000-000000000101', 'phase1_verify_host', now(), now()),
@@ -514,6 +569,11 @@ $$;
 -- Limpeza explícita dos dados temporários. A transação também garante rollback em falhas.
 delete from public.garages where id = '00000000-0000-0000-0000-000000000201';
 delete from public.profiles where id in (
+  '00000000-0000-0000-0000-000000000101',
+  '00000000-0000-0000-0000-000000000102',
+  '00000000-0000-0000-0000-000000000103'
+);
+delete from auth.users where id in (
   '00000000-0000-0000-0000-000000000101',
   '00000000-0000-0000-0000-000000000102',
   '00000000-0000-0000-0000-000000000103'

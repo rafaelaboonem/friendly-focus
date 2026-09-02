@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Car, CalendarDays, Clock3, MapPin, Search, ShieldCheck, Star, WalletCards } from "lucide-react";
 import { useState } from "react";
 
@@ -63,7 +63,7 @@ function Index() {
               <a href="#anfitrioes">Anuncie sua garagem</a>
             </Button>
             <Button variant="outline" asChild>
-              <a href="/auth">Entrar</a>
+              <Link to="/auth">Entrar</Link>
             </Button>
           </nav>
         </div>
@@ -161,7 +161,7 @@ function Index() {
               </p>
             </div>
             <Button variant="secondary" size="lg" className="h-12 rounded-xl" asChild>
-              <a href="/auth">Anuncie sua garagem</a>
+              <Link to="/auth">Anuncie sua garagem</Link>
             </Button>
           </div>
         </section>

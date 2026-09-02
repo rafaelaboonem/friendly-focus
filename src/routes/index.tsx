@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Car, CalendarDays, Clock3, MapPin, Search, ShieldCheck, Star, WalletCards } from "lucide-react";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,21 @@ const garages = [
 ];
 
 function Index() {
+  const navigate = useNavigate();
   const [searchMode, setSearchMode] = useState("schedule");
+  const [destination, setDestination] = useState("");
+  const [duration, setDuration] = useState("");
+
+  function handleInstantSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void navigate({
+      to: "/estacionar-agora",
+      search: {
+        destino: destination.trim() || undefined,
+        periodo: duration.trim() || undefined,
+      },
+    });
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -101,9 +115,21 @@ function Index() {
               </TabsContent>
 
               <TabsContent value="now" className="mt-5">
-                <form className="grid gap-3 lg:grid-cols-[1.45fr_1fr_auto] lg:items-end" onSubmit={(event) => event.preventDefault()}>
-                  <SearchField label="Qual é seu destino?" icon={<MapPin />} placeholder="Bairro, endereço ou ponto de referência" />
-                  <SearchField label="Por quanto tempo?" icon={<Clock3 />} placeholder="Ex.: 2 horas" />
+                <form className="grid gap-3 lg:grid-cols-[1.45fr_1fr_auto] lg:items-end" onSubmit={handleInstantSearch}>
+                  <SearchField
+                    label="Qual é seu destino?"
+                    icon={<MapPin />}
+                    placeholder="Bairro, endereço ou ponto de referência"
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                  />
+                  <SearchField
+                    label="Por quanto tempo?"
+                    icon={<Clock3 />}
+                    placeholder="Ex.: 2 horas"
+                    value={duration}
+                    onChange={(event) => setDuration(event.target.value)}
+                  />
                   <Button type="submit" size="lg" className="h-12 w-full rounded-xl lg:w-auto">
                     <Search aria-hidden="true" /> Encontrar garagem agora
                   </Button>
@@ -182,11 +208,15 @@ function SearchField({
   icon,
   placeholder,
   type = "text",
+  value,
+  onChange,
 }: {
   label: string;
   icon: React.ReactNode;
   placeholder?: string;
   type?: React.HTMLInputTypeAttribute;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
 }) {
   const fieldId = label.toLowerCase().replaceAll(" ", "-").replaceAll("?", "");
 
@@ -196,7 +226,7 @@ function SearchField({
         {icon}
         {label}
       </Label>
-      <Input id={fieldId} type={type} placeholder={placeholder} className="mt-1 h-6 border-0 px-0 text-sm shadow-none focus-visible:ring-0" />
+      <Input id={fieldId} type={type} placeholder={placeholder} value={value} onChange={onChange} className="mt-1 h-6 border-0 px-0 text-sm shadow-none focus-visible:ring-0" />
     </div>
   );
 }

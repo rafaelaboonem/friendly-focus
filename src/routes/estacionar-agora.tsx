@@ -1,8 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, MapPin, Navigation, Search, ShieldCheck, Star, X } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MapPin, Search, ShieldCheck, Star } from "lucide-react";
+import { divIcon, type LatLngExpression } from "leaflet";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+
+import "leaflet/dist/leaflet.css";
 
 export const Route = createFileRoute("/estacionar-agora")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -22,7 +26,7 @@ type Garage = {
   period: string;
   features: string[];
   image: string;
-  position: { left: string; top: string };
+  coordinates: [number, number];
 };
 
 const instantGarages: Garage[] = [
@@ -36,7 +40,7 @@ const instantGarages: Garage[] = [
     period: "por hora",
     features: ["Coberta", "Portão automático", "Câmera"],
     image: "https://images.unsplash.com/photo-1558008258-3256797b43f3?auto=format&fit=crop&w=900&q=80",
-    position: { left: "30%", top: "31%" },
+    coordinates: [-23.5618, -46.6821],
   },
   {
     id: "vila-madalena",
@@ -48,7 +52,7 @@ const instantGarages: Garage[] = [
     period: "por hora",
     features: ["Coberta", "Iluminada", "Acesso fácil"],
     image: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=900&q=80",
-    position: { left: "62%", top: "20%" },
+    coordinates: [-23.5539, -46.6883],
   },
   {
     id: "sumare",
@@ -60,7 +64,7 @@ const instantGarages: Garage[] = [
     period: "por hora",
     features: ["Portão remoto", "Câmera", "Ampla entrada"],
     image: "https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=900&q=80",
-    position: { left: "46%", top: "63%" },
+    coordinates: [-23.5506, -46.6748],
   },
   {
     id: "perdizes",
@@ -72,7 +76,7 @@ const instantGarages: Garage[] = [
     period: "por hora",
     features: ["Coberta", "Porteiro", "Acesso 24h"],
     image: "https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=900&q=80",
-    position: { left: "76%", top: "56%" },
+    coordinates: [-23.5372, -46.6787],
   },
 ];
 
@@ -82,10 +86,6 @@ function EstacionarAgora() {
   const selectedGarage = instantGarages.find((garage) => garage.id === selectedId) ?? instantGarages[0];
   const destinationLabel = destino || "Pinheiros, São Paulo";
   const periodLabel = periodo || "2 horas";
-
-  function selectGarage(id: string) {
-    setSelectedId(id);
-  }
 
   function selectRelativeGarage(direction: number) {
     const currentIndex = instantGarages.findIndex((garage) => garage.id === selectedId);
@@ -126,20 +126,20 @@ function EstacionarAgora() {
           </div>
           <div className="space-y-4 p-5">
             {instantGarages.map((garage) => (
-              <GarageCard key={garage.id} garage={garage} selected={garage.id === selectedId} onSelect={() => selectGarage(garage.id)} />
+              <GarageCard key={garage.id} garage={garage} selected={garage.id === selectedId} onSelect={() => setSelectedId(garage.id)} />
             ))}
           </div>
         </aside>
 
         <section className="relative min-h-[calc(100vh-125px)] overflow-hidden bg-secondary lg:min-h-0" aria-label="Mapa de garagens disponíveis">
-          <MapCanvas garages={instantGarages} selectedId={selectedId} onSelect={selectGarage} />
+          <MapCanvas garages={instantGarages} selectedId={selectedId} onSelect={setSelectedId} />
 
-          <div className="absolute left-4 top-4 z-10 hidden rounded-full border border-border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm backdrop-blur lg:flex lg:items-center lg:gap-2">
+          <div className="pointer-events-none absolute left-4 top-4 z-[500] hidden rounded-full border border-border bg-background/95 px-3 py-2 text-xs font-medium shadow-sm backdrop-blur lg:flex lg:items-center lg:gap-2">
             <Search className="size-4" aria-hidden="true" />
             {instantGarages.length} disponíveis agora
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4 lg:hidden">
+          <div className="absolute inset-x-0 bottom-0 z-[500] p-3 sm:p-4 lg:hidden">
             <div className="mx-auto max-w-lg rounded-3xl border border-border bg-card p-3 shadow-xl shadow-foreground/15">
               <div className="mb-3 flex items-center justify-between gap-2 px-1">
                 <p className="text-xs font-medium text-muted-foreground">{instantGarages.findIndex((garage) => garage.id === selectedId) + 1} de {instantGarages.length} disponíveis</p>
@@ -162,40 +162,47 @@ function EstacionarAgora() {
 }
 
 function MapCanvas({ garages, selectedId, onSelect }: { garages: Garage[]; selectedId: string; onSelect: (id: string) => void }) {
+  const selectedGarage = garages.find((garage) => garage.id === selectedId) ?? garages[0];
+  const center: LatLngExpression = [-23.5523, -46.6811];
+
   return (
-    <div className="absolute inset-0 overflow-hidden bg-secondary">
-      <div className="absolute -left-[15%] top-[14%] h-[2px] w-[130%] rotate-[13deg] bg-border/70" />
-      <div className="absolute -left-[10%] top-[47%] h-[3px] w-[125%] -rotate-[20deg] bg-border/80" />
-      <div className="absolute left-[19%] top-[-12%] h-[125%] w-[2px] rotate-[25deg] bg-border/70" />
-      <div className="absolute left-[56%] top-[-10%] h-[120%] w-[3px] -rotate-[32deg] bg-border/80" />
-      <div className="absolute left-[12%] top-[24%] size-36 rounded-full border border-border/70 bg-background/25" />
-      <div className="absolute bottom-[15%] right-[12%] size-44 rounded-full border border-border/70 bg-background/25" />
-      <div className="absolute left-[7%] top-[10%] text-xs font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">Vila Madalena</div>
-      <div className="absolute right-[12%] top-[33%] text-xs font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">Pinheiros</div>
-      <div className="absolute bottom-[20%] left-[18%] text-xs font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">Sumaré</div>
-      <div className="absolute bottom-[9%] right-[18%] text-xs font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">Perdizes</div>
-
-      {garages.map((garage) => {
-        const selected = garage.id === selectedId;
-        return (
-          <button
+    <div className="absolute inset-0 [&_.leaflet-container]:size-full [&_.leaflet-container]:font-sans">
+      <MapContainer center={center} zoom={14} scrollWheelZoom className="size-full" aria-label="Mapa aproximado de garagens privadas disponíveis">
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <SelectedGarageView garage={selectedGarage} />
+        {garages.map((garage) => (
+          <Marker
             key={garage.id}
-            type="button"
-            onClick={() => onSelect(garage.id)}
-            className={selected ? "absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-lg ring-4 ring-primary/20 transition-transform hover:scale-105" : "absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-card px-3 py-2 text-sm font-semibold shadow-md transition-transform hover:scale-105"}
-            style={garage.position}
+            position={garage.coordinates}
+            icon={createPriceIcon(garage.price, garage.id === selectedId)}
+            eventHandlers={{ click: () => onSelect(garage.id) }}
             aria-label={`${garage.name}: ${garage.price}`}
-          >
-            {garage.price}
-          </button>
-        );
-      })}
-
-      <div className="absolute bottom-44 right-4 flex size-10 items-center justify-center rounded-xl border border-border bg-background/95 text-muted-foreground shadow-sm lg:bottom-4" aria-label="Localização aproximada">
-        <Navigation className="size-4" aria-hidden="true" />
-      </div>
+          />
+        ))}
+      </MapContainer>
     </div>
   );
+}
+
+function SelectedGarageView({ garage }: { garage: Garage }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.flyTo(garage.coordinates, Math.max(map.getZoom(), 14), { duration: 0.45 });
+  }, [garage, map]);
+
+  return null;
+}
+
+function createPriceIcon(price: string, selected: boolean) {
+  return divIcon({
+    className: "!bg-transparent !border-0",
+    html: `<span class="${selected ? "bg-primary text-primary-foreground ring-4 ring-primary/20" : "border border-border bg-card text-foreground"} inline-flex min-h-9 items-center rounded-full px-3 text-sm font-semibold shadow-md transition-transform">${price}</span>`,
+    iconAnchor: [28, 18],
+  });
 }
 
 function GarageCard({ garage, selected, onSelect }: { garage: Garage; selected: boolean; onSelect: () => void }) {
